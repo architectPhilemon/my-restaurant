@@ -30,7 +30,7 @@ const NotificationBar = ({ message, type, onClose }) => {
 };
 
 // --- API Service (Simplified) ---
-const API_BASE_URL = 'http://localhost:5000/api';
+const API_BASE_URL = 'https://my-restaurant-m8od.onrender.com/api';
 
 const api = {
     async register(name, email, password) {
