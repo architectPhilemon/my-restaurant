@@ -21,7 +21,7 @@ const app = express();
 const server = http.createServer(app); // Create HTTP server from app
 const io = new Server(server, { // Initialize Socket.IO with the HTTP server
     cors: {
-        origin: 'http://localhost:3000', // Allow frontend origin
+        origin: 'https://client-lhvl.onrender.com', // Allow frontend origin
         methods: ['GET', 'POST', 'PUT', 'DELETE']
     }
 });
@@ -33,7 +33,7 @@ mongoose.connect(process.env.MONGO_URI)
 
 // Middleware
 app.use(cors({
-    origin: 'http://localhost:3000' // Allow requests from your React frontend
+    origin: 'https://client-lhvl.onrender.com' // Allow requests from your React frontend
 }));
 app.use(express.json()); // Body parser for JSON
 
