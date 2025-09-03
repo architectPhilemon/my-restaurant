@@ -14,6 +14,15 @@ const router = express.Router();
 // Loyalty points configuration (e.g., 1 point per KES 100 spent)
 const LOYALTY_POINTS_RATE = 0.01; // 1% of total amount as points
 
+// Helper function to normalize phone numbers
+function normalizePhoneNumber(number) {
+    if (!number) return '';
+    number = number.replace(/\s+/g, ''); // Remove spaces
+    if (number.startsWith('0')) return `+254${number.substring(1)}`;
+    if (!number.startsWith('+')) return `+${number}`;
+    return number;
+}
+
 // @route   POST /api/orders
 // @desc    Create a new order and initiate M-Pesa STK Push
 // @access  Private
@@ -21,7 +30,7 @@ router.post('/', protect, async (req, res) => {
     const { items, orderType, deliveryAddress, contactNumber, loyaltyPointsToRedeem } = req.body;
 
     try {
-        // Calculate total amount from items (to prevent client-side manipulation)
+        // Calculate total amount from items
         let totalAmount = 0;
         const processedItems = items.map(item => {
             totalAmount += item.price * item.quantity;
@@ -34,9 +43,7 @@ router.post('/', protect, async (req, res) => {
         });
 
         const user = await User.findById(req.user);
-        if (!user) {
-            return res.status(404).json({ message: 'User not found' });
-        }
+        if (!user) return res.status(404).json({ message: 'User not found' });
 
         let pointsRedeemed = 0;
         let finalAmount = totalAmount;
@@ -62,34 +69,31 @@ router.post('/', protect, async (req, res) => {
         const newOrder = new Order({
             user: req.user,
             items: processedItems,
-            totalAmount: finalAmount, // Store the final amount after discount
+            totalAmount: finalAmount,
             orderType,
             deliveryAddress: orderType === 'Delivery' ? deliveryAddress : undefined,
             contactNumber,
             loyaltyPointsRedeemed: pointsRedeemed,
-            status: 'Pending', // Initial status before payment
-            paymentStatus: 'Pending' // Initial payment status
+            status: 'Pending',
+            paymentStatus: 'Pending'
         });
 
         const savedOrder = await newOrder.save();
-
-        // Save updated user loyalty points (after redemption)
         await user.save();
 
         // --- Initiate M-Pesa STK Push ---
-        const mpesaAmount = Math.max(1, Math.ceil(finalAmount)); // Round up to nearest integer, min 1
-        const phoneNumber = contactNumber.startsWith('0') ? `254${contactNumber.substring(1)}` : contactNumber; // Format to 2547...
-
+        const mpesaAmount = Math.max(1, Math.ceil(finalAmount));
+        const phoneNumber = normalizePhoneNumber(contactNumber);
         const stkResponse = await initiateSTKPush(phoneNumber, mpesaAmount, savedOrder._id.toString());
 
-        // Store CheckoutRequestID in order for later callback matching
-        savedOrder.mpesaCheckoutRequestID = stkResponse.CheckoutRequestID; 
+        savedOrder.mpesaCheckoutRequestID = stkResponse.CheckoutRequestID;
         await savedOrder.save();
 
         // Send initial SMS/Email for order placed
         const orderIdShort = savedOrder._id.toString().substring(0, 8);
         const orderPlacedSms = `Dear ${user.name}, your order #${orderIdShort} for KES ${savedOrder.totalAmount.toFixed(2)} has been placed. Please complete M-Pesa payment.`;
-        sendSMS(savedOrder.contactNumber || phonenumber, orderPlacedSms);
+        sendSMS(normalizePhoneNumber(savedOrder.contactNumber) || normalizePhoneNumber(user.contactNumber), orderPlacedSms);
+
         sendEmail(user.email, `Your Order #${orderIdShort} Has Been Placed!`,
             `<p>Dear ${user.name},</p>
              <p>Your order <strong>#${orderIdShort}</strong> has been successfully placed.</p>
@@ -100,7 +104,7 @@ router.post('/', protect, async (req, res) => {
         res.status(201).json({
             message: 'Order placed, awaiting M-Pesa payment confirmation.',
             orderId: savedOrder._id,
-            mpesaResponse: stkResponse 
+            mpesaResponse: stkResponse
         });
 
     } catch (error) {
@@ -130,17 +134,12 @@ router.put('/:id/cancel', protect, async (req, res) => {
         const orderId = req.params.id;
         const order = await Order.findById(orderId);
 
-        if (!order) {
-            return res.status(404).json({ message: 'Order not found' });
-        }
-
-        if (order.user.toString() !== req.user.toString()) {
-            return res.status(403).json({ message: 'Not authorized to cancel this order' });
-        }
+        if (!order) return res.status(404).json({ message: 'Order not found' });
+        if (order.user.toString() !== req.user.toString()) return res.status(403).json({ message: 'Not authorized to cancel this order' });
 
         if (order.status === 'Pending' || order.status === 'Confirmed') {
             order.status = 'Cancelled';
-            order.paymentStatus = 'Refunded'; 
+            order.paymentStatus = 'Refunded';
 
             if (order.loyaltyPointsRedeemed > 0) {
                 const user = await User.findById(req.user);
@@ -155,7 +154,8 @@ router.put('/:id/cancel', protect, async (req, res) => {
             if (user) {
                 const orderIdShort = order._id.toString().substring(0, 8);
                 const smsMessage = `Dear ${user.name}, your order #${orderIdShort} has been cancelled.`;
-                sendSMS(order.contactNumber || user.contactNumber, smsMessage);
+                sendSMS(normalizePhoneNumber(order.contactNumber) || normalizePhoneNumber(user.contactNumber), smsMessage);
+
                 sendEmail(user.email, `Order #${orderIdShort} Cancelled`,
                     `<p>Dear ${user.name},</p>
                      <p>Your order <strong>#${orderIdShort}</strong> has been successfully cancelled.</p>
@@ -179,13 +179,11 @@ router.put('/:id/cancel', protect, async (req, res) => {
 // @access  Private (Admin)
 router.put('/:id/status', protect, authorizeAdmin, async (req, res) => {
     const { status } = req.body;
-    const io = req.app.get('socketio'); 
+    const io = req.app.get('socketio');
 
     try {
         const order = await Order.findById(req.params.id);
-        if (!order) {
-            return res.status(404).json({ message: 'Order not found' });
-        }
+        if (!order) return res.status(404).json({ message: 'Order not found' });
 
         order.status = status;
         await order.save();
@@ -227,13 +225,13 @@ router.put('/:id/status', protect, authorizeAdmin, async (req, res) => {
                     break;
             }
 
-            if (smsMessage) sendSMS(order.contactNumber || user.contactNumber, smsMessage);
+            if (smsMessage) sendSMS(normalizePhoneNumber(order.contactNumber) || normalizePhoneNumber(user.contactNumber), smsMessage);
             if (emailSubject) sendEmail(user.email, emailSubject, emailContent);
         }
 
         io.to(order._id.toString()).emit('orderStatusUpdate', { orderId: order._id, newStatus: status });
-
         res.json({ message: 'Order status updated', order });
+
     } catch (error) {
         console.error('Error updating order status:', error);
         res.status(500).json({ message: 'Server error' });
@@ -245,13 +243,11 @@ router.put('/:id/status', protect, authorizeAdmin, async (req, res) => {
 // @access  Private (Admin)
 router.put('/:id/driver-location', protect, authorizeAdmin, async (req, res) => {
     const { lat, lng } = req.body;
-    const io = req.app.get('socketio'); 
+    const io = req.app.get('socketio');
 
     try {
         const order = await Order.findById(req.params.id);
-        if (!order) {
-            return res.status(404).json({ message: 'Order not found' });
-        }
+        if (!order) return res.status(404).json({ message: 'Order not found' });
 
         order.driverLocation = { lat, lng };
         await order.save();
@@ -262,6 +258,7 @@ router.put('/:id/driver-location', protect, authorizeAdmin, async (req, res) => 
         });
 
         res.json({ message: 'Driver location updated', location: { lat, lng } });
+
     } catch (error) {
         console.error('Error updating driver location:', error);
         res.status(500).json({ message: 'Server error' });
