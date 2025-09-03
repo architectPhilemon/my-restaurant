@@ -89,7 +89,7 @@ router.post('/', protect, async (req, res) => {
         // Send initial SMS/Email for order placed
         const orderIdShort = savedOrder._id.toString().substring(0, 8);
         const orderPlacedSms = `Dear ${user.name}, your order #${orderIdShort} for KES ${savedOrder.totalAmount.toFixed(2)} has been placed. Please complete M-Pesa payment.`;
-        sendSMS(user.contactNumber, orderPlacedSms);
+        sendSMS(savedOrder.contactNumber || user.contactNumber, orderPlacedSms);
         sendEmail(user.email, `Your Order #${orderIdShort} Has Been Placed!`,
             `<p>Dear ${user.name},</p>
              <p>Your order <strong>#${orderIdShort}</strong> has been successfully placed.</p>
@@ -155,7 +155,7 @@ router.put('/:id/cancel', protect, async (req, res) => {
             if (user) {
                 const orderIdShort = order._id.toString().substring(0, 8);
                 const smsMessage = `Dear ${user.name}, your order #${orderIdShort} has been cancelled.`;
-                sendSMS(user.contactNumber, smsMessage);
+                sendSMS(order.contactNumber || user.contactNumber, smsMessage);
                 sendEmail(user.email, `Order #${orderIdShort} Cancelled`,
                     `<p>Dear ${user.name},</p>
                      <p>Your order <strong>#${orderIdShort}</strong> has been successfully cancelled.</p>
@@ -227,7 +227,7 @@ router.put('/:id/status', protect, authorizeAdmin, async (req, res) => {
                     break;
             }
 
-            if (smsMessage) sendSMS(user.contactNumber, smsMessage);
+            if (smsMessage) sendSMS(order.contactNumber || user.contactNumber, smsMessage);
             if (emailSubject) sendEmail(user.email, emailSubject, emailContent);
         }
 
