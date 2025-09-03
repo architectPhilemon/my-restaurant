@@ -19,8 +19,9 @@ function normalizePhoneNumber(number) {
     if (!number) return '';
     number = number.replace(/\s+/g, ''); // Remove spaces
     if (number.startsWith('0')) return `+254${number.substring(1)}`;
-    if (!number.startsWith('+')) return `+${number}`;
-    return number;
+    if (number.startsWith('254')) return `+${number}`;
+    if (number.startsWith('+254')) return number;
+    return number; // fallback, may fail
 }
 
 // @route   POST /api/orders
@@ -30,7 +31,7 @@ router.post('/', protect, async (req, res) => {
     const { items, orderType, deliveryAddress, contactNumber, loyaltyPointsToRedeem } = req.body;
 
     try {
-        // Calculate total amount from items
+        // Calculate total amount
         let totalAmount = 0;
         const processedItems = items.map(item => {
             totalAmount += item.price * item.quantity;
@@ -48,10 +49,10 @@ router.post('/', protect, async (req, res) => {
         let pointsRedeemed = 0;
         let finalAmount = totalAmount;
 
-        // Handle loyalty points redemption
+        // Loyalty points redemption
         if (loyaltyPointsToRedeem && loyaltyPointsToRedeem > 0) {
             if (user.loyaltyPoints >= loyaltyPointsToRedeem) {
-                const discountAmount = loyaltyPointsToRedeem; // 1 point = 1 KES discount
+                const discountAmount = loyaltyPointsToRedeem;
                 if (discountAmount <= finalAmount) {
                     finalAmount -= discountAmount;
                     user.loyaltyPoints -= loyaltyPointsToRedeem;
@@ -81,7 +82,7 @@ router.post('/', protect, async (req, res) => {
         const savedOrder = await newOrder.save();
         await user.save();
 
-        // --- Initiate M-Pesa STK Push ---
+        // --- M-Pesa STK Push ---
         const mpesaAmount = Math.max(1, Math.ceil(finalAmount));
         const phoneNumber = normalizePhoneNumber(contactNumber);
         const stkResponse = await initiateSTKPush(phoneNumber, mpesaAmount, savedOrder._id.toString());
@@ -89,12 +90,12 @@ router.post('/', protect, async (req, res) => {
         savedOrder.mpesaCheckoutRequestID = stkResponse.CheckoutRequestID;
         await savedOrder.save();
 
-        // Send initial SMS/Email for order placed
+        // Send SMS/Email
         const orderIdShort = savedOrder._id.toString().substring(0, 8);
         const orderPlacedSms = `Dear ${user.name}, your order #${orderIdShort} for KES ${savedOrder.totalAmount.toFixed(2)} has been placed. Please complete M-Pesa payment.`;
-        sendSMS(normalizePhoneNumber(savedOrder.contactNumber) || normalizePhoneNumber(user.contactNumber), orderPlacedSms);
+        await sendSMS(normalizePhoneNumber(savedOrder.contactNumber) || normalizePhoneNumber(user.contactNumber), orderPlacedSms);
 
-        sendEmail(user.email, `Your Order #${orderIdShort} Has Been Placed!`,
+        await sendEmail(user.email, `Your Order #${orderIdShort} Has Been Placed!`,
             `<p>Dear ${user.name},</p>
              <p>Your order <strong>#${orderIdShort}</strong> has been successfully placed.</p>
              <p>Total Amount: <strong>KES ${savedOrder.totalAmount.toFixed(2)}</strong></p>
@@ -133,7 +134,6 @@ router.put('/:id/cancel', protect, async (req, res) => {
     try {
         const orderId = req.params.id;
         const order = await Order.findById(orderId);
-
         if (!order) return res.status(404).json({ message: 'Order not found' });
         if (order.user.toString() !== req.user.toString()) return res.status(403).json({ message: 'Not authorized to cancel this order' });
 
@@ -154,9 +154,9 @@ router.put('/:id/cancel', protect, async (req, res) => {
             if (user) {
                 const orderIdShort = order._id.toString().substring(0, 8);
                 const smsMessage = `Dear ${user.name}, your order #${orderIdShort} has been cancelled.`;
-                sendSMS(normalizePhoneNumber(order.contactNumber) || normalizePhoneNumber(user.contactNumber), smsMessage);
+                await sendSMS(normalizePhoneNumber(order.contactNumber) || normalizePhoneNumber(user.contactNumber), smsMessage);
 
-                sendEmail(user.email, `Order #${orderIdShort} Cancelled`,
+                await sendEmail(user.email, `Order #${orderIdShort} Cancelled`,
                     `<p>Dear ${user.name},</p>
                      <p>Your order <strong>#${orderIdShort}</strong> has been successfully cancelled.</p>
                      ${order.loyaltyPointsRedeemed > 0 ? `<p><strong>${order.loyaltyPointsRedeemed}</strong> loyalty points have been refunded to your account.</p>` : ''}
@@ -225,8 +225,8 @@ router.put('/:id/status', protect, authorizeAdmin, async (req, res) => {
                     break;
             }
 
-            if (smsMessage) sendSMS(normalizePhoneNumber(order.contactNumber) || normalizePhoneNumber(user.contactNumber), smsMessage);
-            if (emailSubject) sendEmail(user.email, emailSubject, emailContent);
+            if (smsMessage) await sendSMS(normalizePhoneNumber(order.contactNumber) || normalizePhoneNumber(user.contactNumber), smsMessage);
+            if (emailSubject) await sendEmail(user.email, emailSubject, emailContent);
         }
 
         io.to(order._id.toString()).emit('orderStatusUpdate', { orderId: order._id, newStatus: status });
