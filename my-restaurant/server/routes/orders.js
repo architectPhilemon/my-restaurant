@@ -89,7 +89,7 @@ router.post('/', protect, async (req, res) => {
         // Send initial SMS/Email for order placed
         const orderIdShort = savedOrder._id.toString().substring(0, 8);
         const orderPlacedSms = `Dear ${user.name}, your order #${orderIdShort} for KES ${savedOrder.totalAmount.toFixed(2)} has been placed. Please complete M-Pesa payment.`;
-        sendSMS(savedOrder.contactNumber || user.contactNumber, orderPlacedSms);
+        sendSMS(savedOrder.contactNumber || phonenumber, orderPlacedSms);
         sendEmail(user.email, `Your Order #${orderIdShort} Has Been Placed!`,
             `<p>Dear ${user.name},</p>
              <p>Your order <strong>#${orderIdShort}</strong> has been successfully placed.</p>
