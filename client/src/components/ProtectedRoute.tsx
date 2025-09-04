@@ -1,4 +1,3 @@
-// src/components/ProtectedRoute.tsx
 import { ReactNode } from "react";
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
@@ -9,24 +8,20 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, role }: ProtectedRouteProps) => {
-  const { user, loading } = useAuth();
+  const { user, isLoading } = useAuth(); // ✅ use isLoading instead of loading
 
-  // Wait until we know user state
-  if (loading) {
+  if (isLoading) {
     return <div className="p-4 text-center">Loading...</div>;
   }
 
-  // If not logged in, redirect to login
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // If a role is required and user doesn’t match, block access
-  if (role && user.role !== role) {
+  if (role && user.role && user.role !== role) {   // ✅ safe role check
     return <Navigate to="/" replace />;
   }
 
-  // Otherwise allow access
   return <>{children}</>;
 };
 
