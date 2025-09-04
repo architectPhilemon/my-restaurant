@@ -23,7 +23,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (context === undefined) {
+  if (!context) {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
@@ -36,22 +36,36 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const isAuthenticated = !!user;
 
+  // Check for token on mount
   useEffect(() => {
-    const token = getAuthToken();
-    if (token) {
-      // TODO: Verify token with backend and get user data
-      // For now, we'll just check if token exists
-      setUser({ id: "1", name: "User", email: "user@example.com" });
-    }
-    setIsLoading(false);
+    const initAuth = async () => {
+      const token = getAuthToken();
+      if (token) {
+        try {
+          // Call backend to validate token and fetch user details
+          const response = await authAPI.getProfile?.();
+          if (response?.user) {
+            setUser(response.user);
+          }
+        } catch (err) {
+          console.error("Auth init error:", err);
+          removeAuthToken();
+          setUser(null);
+        }
+      }
+      setIsLoading(false);
+    };
+    initAuth();
   }, []);
 
   const login = async (email: string, password: string) => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
       const response = await authAPI.login({ email, password });
       setUser(response.user);
+      navigate("/"); // redirect after login
     } catch (error) {
+      console.error("Login failed:", error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -59,11 +73,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const register = async (userData: { name: string; email: string; password: string; phone?: string }) => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
       const response = await authAPI.register(userData);
       setUser(response.user);
+      navigate("/"); // redirect after signup
     } catch (error) {
+      console.error("Registration failed:", error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -72,14 +88,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const logout = () => {
     try {
-      // optional backend logout if implemented
-      authAPI.logout?.();
+      authAPI.logout?.(); // optional backend logout
     } catch (err) {
       console.error("Logout API error:", err);
     } finally {
-      removeAuthToken();   // clear JWT from storage
-      setUser(null);       // reset user state
-      navigate("/login");  // redirect to login page
+      removeAuthToken();
+      setUser(null);
+      navigate("/login");
     }
   };
 
