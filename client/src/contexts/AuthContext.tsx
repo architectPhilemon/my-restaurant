@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { authAPI, getAuthToken, removeAuthToken } from '@/services/api';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
+import { authAPI, getAuthToken, removeAuthToken } from "@/services/api";
 
 interface User {
   id: string;
@@ -23,7 +24,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
@@ -31,6 +32,7 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   const isAuthenticated = !!user;
 
@@ -39,7 +41,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (token) {
       // TODO: Verify token with backend and get user data
       // For now, we'll just check if token exists
-      setUser({ id: '1', name: 'User', email: 'user@example.com' });
+      setUser({ id: "1", name: "User", email: "user@example.com" });
     }
     setIsLoading(false);
   }, []);
@@ -69,12 +71,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = () => {
-    authAPI.logout();
-    setUser(null);
-    removeAuthToken();
+    try {
+      // optional backend logout if implemented
+      authAPI.logout?.();
+    } catch (err) {
+      console.error("Logout API error:", err);
+    } finally {
+      removeAuthToken();   // clear JWT from storage
+      setUser(null);       // reset user state
+      navigate("/login");  // redirect to login page
+    }
   };
 
-  const value = {
+  const value: AuthContextType = {
     user,
     isAuthenticated,
     isLoading,
