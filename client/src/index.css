@@ -1,0 +1,178 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Restaurant Design System - Vibrant orange theme with elegant touches */
+
+@layer base {
+  :root {
+    --background: 35 20% 95%;
+    --foreground: 25 25% 15%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 25 25% 15%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 25 25% 15%;
+
+    --primary: 16 95% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 16 95% 55%;
+
+    --secondary: 35 50% 88%;
+    --secondary-foreground: 25 25% 15%;
+
+    --muted: 35 30% 92%;
+    --muted-foreground: 25 15% 45%;
+
+    --accent: 45 100% 85%;
+    --accent-foreground: 25 25% 15%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 100%;
+
+    --success: 120 50% 45%;
+    --success-foreground: 0 0% 100%;
+
+    --warning: 45 95% 55%;
+    --warning-foreground: 25 25% 15%;
+
+    --border: 35 20% 85%;
+    --input: 35 20% 90%;
+    --ring: 16 95% 60%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+
+    /* Gradients for restaurant theme */
+    --gradient-hero: linear-gradient(135deg, hsl(16 95% 60%) 0%, hsl(25 85% 55%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(35 30% 96%) 100%);
+    --gradient-button: linear-gradient(135deg, hsl(16 95% 60%) 0%, hsl(16 95% 55%) 100%);
+    
+    /* Shadows with orange tint */
+    --shadow-elegant: 0 10px 30px -10px hsl(16 95% 60% / 0.2);
+    --shadow-card: 0 4px 15px -3px hsl(16 95% 60% / 0.1);
+    --shadow-button: 0 6px 20px -6px hsl(16 95% 60% / 0.4);
+    
+    /* Animation variables */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --animation-bounce: bounce 1s infinite;
+  }
+
+  .dark {
+    --background: 25 25% 8%;
+    --foreground: 35 20% 95%;
+
+    --card: 25 25% 10%;
+    --card-foreground: 35 20% 95%;
+
+    --popover: 25 25% 10%;
+    --popover-foreground: 35 20% 95%;
+
+    --primary: 16 95% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-hover: 16 95% 65%;
+
+    --secondary: 25 15% 15%;
+    --secondary-foreground: 35 20% 95%;
+
+    --muted: 25 15% 15%;
+    --muted-foreground: 35 10% 65%;
+
+    --accent: 25 15% 15%;
+    --accent-foreground: 35 20% 95%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 35 20% 95%;
+
+    --border: 25 15% 20%;
+    --input: 25 15% 20%;
+    --ring: 16 95% 60%;
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+
+  /* Restaurant-specific animations */
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+  }
+
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-50px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+}
+
+@layer components {
+  /* Hero button variant */
+  .btn-hero {
+    @apply bg-gradient-to-r from-primary to-primary-hover text-primary-foreground px-8 py-4 rounded-lg font-semibold text-lg shadow-[var(--shadow-button)] hover:scale-105 transition-all duration-300 hover:shadow-[var(--shadow-elegant)];
+  }
+
+  /* Feature card variant */
+  .feature-card {
+    @apply bg-gradient-to-br from-card to-secondary/50 p-8 rounded-2xl shadow-[var(--shadow-card)] hover:shadow-[var(--shadow-elegant)] transition-all duration-300 hover:-translate-y-2 border border-border/50;
+  }
+
+  /* Menu item card */
+  .menu-card {
+    @apply bg-card rounded-xl shadow-[var(--shadow-card)] overflow-hidden hover:shadow-[var(--shadow-elegant)] transition-all duration-300 hover:-translate-y-1 border border-border/50;
+  }
+
+  /* Floating animation */
+  .float-animation {
+    animation: float 6s ease-in-out infinite;
+  }
+
+  /* Fade in up animation */
+  .fade-in-up {
+    animation: fadeInUp 0.8s ease-out forwards;
+  }
+
+  /* Slide in left animation */
+  .slide-in-left {
+    animation: slideInLeft 0.8s ease-out forwards;
+  }
+}
