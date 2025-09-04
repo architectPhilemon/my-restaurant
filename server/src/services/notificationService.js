@@ -11,7 +11,7 @@ const africasTalking = AfricasTalking({
 });
 
 // Email transporter setup
-const emailTransporter = nodemailer.createTransporter({
+const emailTransporter = nodemailer.createTransport({
   service: 'SendGrid',
   auth: {
     user: 'apikey',
